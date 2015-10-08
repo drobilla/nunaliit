@@ -1036,4 +1036,56 @@ function tick(timestamp) {
 if (usePhysics) {
 	requestAnimationFrame(tick);
 }
+
+function DrawOverlay(parent, width, height) {
+	this.drawing = false;
+	this.points = [];
+
+	this.canvas = document.createElement('canvas');
+	this.canvas.width = width || 100;
+	this.canvas.height = height || 100;
+	this.canvas.style.position = "absolute";
+	this.canvas.style.left = "0px";
+	this.canvas.style.top = "0px";
+	this.canvas.style.width = "100%";
+	this.canvas.style.height = "100%";
+	this.canvas.style.zIndex = "999999999";
+	parent.appendChild(this.canvas);
+
+	this.context = this.canvas.getContext('2d');
 }
+
+DrawOverlay.prototype.startStroke = function (x, y) {
+	this.drawing = true;
+	this.context.beginPath();
+}
+
+DrawOverlay.prototype.moveTo = function (x, y) {
+	if (!this.drawing) {
+		return;
+	}
+
+	this.points.push([x, y]);
+	this.context.lineTo(x, y);
+	this.context.stroke();
+}
+
+DrawOverlay.prototype.endStroke = function (x, y) {
+	this.drawing = false;
+	console.log(this.points);
+	this.points = []
+}
+
+canvas = new DrawOverlay(document.body, window.innerWidth, window.innerHeight);
+
+document.body.onmousedown = function (e) {
+	canvas.startStroke(e.pageX - this.offsetX, e.pageY - this.offsetY);
+};
+
+document.body.onmousemove = function (e) {
+	canvas.moveTo(e.pageX, e.pageY);
+};
+
+document.body.onmouseup = function (e) {
+	canvas.endStroke(e.pageX - this.offsetX, e.pageY - this.offsetY);
+};
