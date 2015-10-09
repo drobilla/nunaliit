@@ -952,6 +952,32 @@ window.onkeydown = function (e) {
 		map.style.top = (yMargin + yOffset) + "px";
 		map.style.bottom = (yMargin - yOffset) + "px";
 		console.log("Y margin " + yMargin + " offset " + yOffset);
+	} else if (code == 90) {
+		// z, start draw zoom
+		canvas = new DrawOverlay(
+			document.body, window.innerWidth, window.innerHeight,
+			function (points) {
+				// Find bounding rectangle
+				var left = Infinity;
+				var bottom = 0;
+				var right = 0;
+				var top = Infinity;
+				for (var i = 0; i < points.length; ++i) {
+					left = Math.min(left, points[i][0]);
+					bottom = Math.max(bottom, points[i][1]);
+					right = Math.max(right, points[i][0]);
+					top = Math.min(top, points[i][1]);
+				}
+
+				// Convert to lon/lat
+				var tl = moduleDisplay.mapControl.map.getLonLatFromPixel(
+					new OpenLayers.Pixel(left, top));
+				var br = moduleDisplay.mapControl.map.getLonLatFromPixel(
+					new OpenLayers.Pixel(right, bottom));
+
+				// Zoom/center map to/on bounding rectangle
+				moduleDisplay.mapControl.map.zoomToExtent([tl.lon, br.lat, br.lon, br.lat]);
+			});
 	}
 };
 
@@ -1037,9 +1063,13 @@ if (usePhysics) {
 	requestAnimationFrame(tick);
 }
 
-function DrawOverlay(parent, width, height) {
+function DrawOverlay(parent, width, height, pathCallback) {
+	var self = this;
+
+	this.parent = parent;
 	this.drawing = false;
 	this.points = [];
+	this.pathCallback = pathCallback;
 
 	this.canvas = document.createElement('canvas');
 	this.canvas.width = width || 100;
@@ -1053,10 +1083,27 @@ function DrawOverlay(parent, width, height) {
 	parent.appendChild(this.canvas);
 
 	this.context = this.canvas.getContext('2d');
+
+	this.canvas.onmousedown = function (e) {
+		self.startStroke(e.pageX - this.offsetX, e.pageY - this.offsetY);
+	};
+
+	this.canvas.onmousemove = function (e) {
+		self.moveTo(e.pageX, e.pageY);
+	};
+
+	this.canvas.onmouseup = function (e) {
+		self.endStroke(e.pageX - this.offsetX, e.pageY - this.offsetY);
+		self.parent.removeChild(self.canvas);
+		delete self;
+	};
 }
 
 DrawOverlay.prototype.startStroke = function (x, y) {
 	this.drawing = true;
+	this.context.lineCap = 'round';
+	this.context.lineWidth = 8;
+	this.context.strokeStyle = '#DDDDDD';
 	this.context.beginPath();
 }
 
@@ -1072,20 +1119,6 @@ DrawOverlay.prototype.moveTo = function (x, y) {
 
 DrawOverlay.prototype.endStroke = function (x, y) {
 	this.drawing = false;
-	console.log(this.points);
+	this.pathCallback(this.points);
 	this.points = []
 }
-
-canvas = new DrawOverlay(document.body, window.innerWidth, window.innerHeight);
-
-document.body.onmousedown = function (e) {
-	canvas.startStroke(e.pageX - this.offsetX, e.pageY - this.offsetY);
-};
-
-document.body.onmousemove = function (e) {
-	canvas.moveTo(e.pageX, e.pageY);
-};
-
-document.body.onmouseup = function (e) {
-	canvas.endStroke(e.pageX - this.offsetX, e.pageY - this.offsetY);
-};
