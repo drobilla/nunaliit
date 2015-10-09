@@ -954,8 +954,9 @@ window.onkeydown = function (e) {
 		console.log("Y margin " + yMargin + " offset " + yOffset);
 	} else if (code == 90) {
 		// z, start draw zoom
+		var map = document.getElementById("nunaliit2_uniqueId_65");
 		canvas = new DrawOverlay(
-			document.body, window.innerWidth, window.innerHeight,
+			map, map.offsetWidth, map.offsetHeight,
 			function (points) {
 				// Find bounding rectangle
 				var left = Infinity;
@@ -976,7 +977,7 @@ window.onkeydown = function (e) {
 					new OpenLayers.Pixel(right, bottom));
 
 				// Zoom/center map to/on bounding rectangle
-				moduleDisplay.mapControl.map.zoomToExtent([tl.lon, br.lat, br.lon, br.lat]);
+				moduleDisplay.mapControl.map.zoomToExtent([tl.lon, br.lat, br.lon, tl.lat]);
 			});
 	}
 };
@@ -1084,16 +1085,25 @@ function DrawOverlay(parent, width, height, pathCallback) {
 
 	this.context = this.canvas.getContext('2d');
 
+	this.getMousePosition = function (e) {
+		var box = self.canvas.getBoundingClientRect();
+		return { x: e.clientX - box.left,
+		         y: e.clientY - box.top };
+	}
+
 	this.canvas.onmousedown = function (e) {
-		self.startStroke(e.pageX - this.offsetX, e.pageY - this.offsetY);
+		var pos = self.getMousePosition(e);
+		self.startStroke(pos.x, pos.y);
 	};
 
 	this.canvas.onmousemove = function (e) {
-		self.moveTo(e.pageX, e.pageY);
+		var pos = self.getMousePosition(e);
+		self.moveTo(pos.x, pos.y);
 	};
 
 	this.canvas.onmouseup = function (e) {
-		self.endStroke(e.pageX - this.offsetX, e.pageY - this.offsetY);
+		var pos = self.getMousePosition(e);
+		self.endStroke(pos.x, pos.y);
 		self.parent.removeChild(self.canvas);
 		delete self;
 	};
@@ -1105,6 +1115,9 @@ DrawOverlay.prototype.startStroke = function (x, y) {
 	this.context.lineWidth = 8;
 	this.context.strokeStyle = '#DDDDDD';
 	this.context.beginPath();
+
+	this.context.moveTo(x, y);
+	this.points.push([x, y]);
 }
 
 DrawOverlay.prototype.moveTo = function (x, y) {
@@ -1112,9 +1125,9 @@ DrawOverlay.prototype.moveTo = function (x, y) {
 		return;
 	}
 
-	this.points.push([x, y]);
 	this.context.lineTo(x, y);
 	this.context.stroke();
+	this.points.push([x, y]);
 }
 
 DrawOverlay.prototype.endStroke = function (x, y) {
